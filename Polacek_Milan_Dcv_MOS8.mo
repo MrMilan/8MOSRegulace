@@ -31,7 +31,8 @@ package MOS8
     Modelica.Blocks.Interfaces.RealOutput height annotation(Placement(visible = true, transformation(origin = {84, 84}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {80, 78}, extent = {{-22, -22}, {22, 22}}, rotation = 0)));
   equation
     der(volume) = pqIn.q + pqOut.q;
-    roLiquid * gravit * height = pqIn.p - pqOut.p;
+    roLiquid * gravit * height = pqIn.p;
+    pqIn.p = pqOut.p;
     volume = height * areaBase;
     annotation(Diagram(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), Icon(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2}), graphics = {Rectangle(origin = {-6, 10}, fillColor = {0, 85, 255}, fillPattern = FillPattern.Horizontal, extent = {{-60, 70}, {64, -58}}), Text(origin = {1, -68}, extent = {{-65, -24}, {65, 24}}, textString = "%name")}));
   end tank;
@@ -41,18 +42,14 @@ package MOS8
     pq pqIn annotation(Placement(visible = true, transformation(origin = {-90, -2}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {-90, -2}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
     pq pqOut annotation(Placement(visible = true, transformation(origin = {90, 0}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {90, 0}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
     Real q;
-    Real dp;
     Boolean on;
   equation
     pqIn.q + pqOut.q = 0;
-    pqIn.p - pqOut.p = dp;
     pqIn.q = q;
     on = u >= 0;
     if on then
-      dp = 0;
       q = u;
     else
-      dp = u;
       q = 0;
     end if;
     annotation(Diagram(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), Icon(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2}), graphics = {Polygon(origin = {-4.00007, -12}, points = {{-75.9999, 70}, {-75.9999, -68}, {84.0001, 70}, {84.0001, -68}, {-75.9999, 70}})}));
@@ -75,10 +72,10 @@ package MOS8
   end Regulator;
 
   model halfMeter
-    Modelica.Blocks.Sources.Ramp ramp1(duration = 0.1, height = 0.5) annotation(Placement(visible = true, transformation(origin = {-56, 82}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
-    Modelica.Blocks.Sources.Step step1(height = 1, startTime = 20) annotation(Placement(visible = true, transformation(origin = {-56, -22}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    Modelica.Blocks.Sources.Ramp ramp1(duration = 0.01, height = -0.25, offset = 0.5, startTime = 10) annotation(Placement(visible = true, transformation(origin = {-56, 82}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    Modelica.Blocks.Sources.Step step1(height = 0.1, startTime = 20, offset = 0.1) annotation(Placement(visible = true, transformation(origin = {-56, -22}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
     tok tok1 annotation(Placement(visible = true, transformation(origin = {-12, -16}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
-    Regulator regulator1(P = 1, I = 1, D = 1) annotation(Placement(visible = true, transformation(origin = {22, 34}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    Regulator regulator1(P = 8, I = 5, D = 0.3) annotation(Placement(visible = true, transformation(origin = {22, 34}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
     tlak tlak1 annotation(Placement(visible = true, transformation(origin = {84, -14}, extent = {{10, -10}, {-10, 10}}, rotation = 0)));
     ventil ventil1 annotation(Placement(visible = true, transformation(origin = {54, -18}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
     tank tank1 annotation(Placement(visible = true, transformation(origin = {20, -16}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
@@ -92,5 +89,44 @@ package MOS8
     connect(step1.y, tok1.u) annotation(Line(points = {{-45, -22}, {-36, -22}, {-36, -8}, {-20, -8}, {-20, -8}}, color = {0, 0, 127}));
     annotation(Icon(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), Diagram(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})));
   end halfMeter;
+
+  model AntiWRegulator
+    parameter Real P;
+    parameter Real I;
+    parameter Real D;
+    Real Iinter;
+    Real error;
+    Modelica.Blocks.Interfaces.RealInput height annotation(Placement(visible = true, transformation(origin = {-90, -30}, extent = {{-20, -20}, {20, 20}}, rotation = 0), iconTransformation(origin = {-61, -59}, extent = {{-39, -39}, {39, 39}}, rotation = 0)));
+    Modelica.Blocks.Interfaces.RealInput Referention annotation(Placement(visible = true, transformation(origin = {-86, 82}, extent = {{-20, -20}, {20, 20}}, rotation = 0), iconTransformation(origin = {-60, 60}, extent = {{-40, -40}, {40, 40}}, rotation = 0)));
+    Modelica.Blocks.Interfaces.RealOutput y annotation(Placement(visible = true, transformation(origin = {42, 84}, extent = {{-10, -10}, {10, 10}}, rotation = 0), iconTransformation(origin = {60, 60}, extent = {{-38, -38}, {38, 38}}, rotation = 0)));
+  equation
+    error = height - Referention;
+    y = P * error + Iinter + D * der(error);
+    if y < 0 then
+      der(Iinter) = 0;
+    else
+      der(Iinter) = I * error;
+    end if;
+    annotation(Diagram(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), Icon(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2}), graphics = {Rectangle(origin = {0, 1}, fillColor = {255, 170, 0}, fillPattern = FillPattern.Solid, extent = {{-100, 101}, {100, -101}}), Text(origin = {-20, 85}, extent = {{-32, -19}, {32, 19}}, textString = "Ref"), Text(origin = {-33, -25}, extent = {{-37, 17}, {37, -17}}, textString = "height"), Text(origin = {9, -108}, extent = {{-95, -36}, {95, 36}}, textString = "%name")}));
+  end AntiWRegulator;
+
+  model AntiHalfMeter
+    Modelica.Blocks.Sources.Ramp ramp1(duration = 0.01, height = -0.25, offset = 0.5, startTime = 10) annotation(Placement(visible = true, transformation(origin = {-56, 82}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    Modelica.Blocks.Sources.Step step1(height = 0.1, startTime = 20, offset = 0.1) annotation(Placement(visible = true, transformation(origin = {-56, -22}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    tok tok1 annotation(Placement(visible = true, transformation(origin = {-12, -16}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    tlak tlak1 annotation(Placement(visible = true, transformation(origin = {84, -14}, extent = {{10, -10}, {-10, 10}}, rotation = 0)));
+    ventil ventil1 annotation(Placement(visible = true, transformation(origin = {54, -18}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    AntiWRegulator antiWRegulator1(P = 8, I = 3, D = 0.3) annotation(Placement(visible = true, transformation(origin = {18, 38}, extent = {{-10, -10}, {10, 10}}, rotation = 0)));
+    tank tank1 annotation(Placement(visible = true, transformation(origin = {23, -13}, extent = {{-13, -13}, {13, 13}}, rotation = 0)));
+  equation
+    connect(antiWRegulator1.y, ventil1.u) annotation(Line(points = {{24, 44}, {54, 44}, {54, -12}, {54, -12}}, color = {0, 0, 127}));
+    connect(ramp1.y, antiWRegulator1.Referention) annotation(Line(points = {{-45, 82}, {-24, 82}, {-24, 44}, {12, 44}, {12, 44}}, color = {0, 0, 127}));
+    connect(tank1.height, antiWRegulator1.height) annotation(Line(points = {{33, -3}, {33, 12}, {-8, 12}, {-8, 30}, {10, 30}, {10, 30}}, color = {0, 0, 127}));
+    connect(tank1.pqIn, tok1.pq1) annotation(Line(points = {{12, -21}, {8, -21}, {8, -25}, {-3, -25}}));
+    connect(tank1.pqOut, ventil1.pqIn) annotation(Line(points = {{34, -21}, {40, -21}, {40, -18}, {45, -18}}));
+    connect(ventil1.pqOut, tlak1.pq1) annotation(Line(points = {{63, -18}, {68, -18}, {68, -24}, {74, -24}, {74, -24}}));
+    connect(step1.y, tok1.u) annotation(Line(points = {{-45, -22}, {-36, -22}, {-36, -8}, {-20, -8}, {-20, -8}}, color = {0, 0, 127}));
+    annotation(Icon(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), Diagram(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})));
+  end AntiHalfMeter;
   annotation(Icon(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), Diagram(coordinateSystem(extent = {{-100, -100}, {100, 100}}, preserveAspectRatio = true, initialScale = 0.1, grid = {2, 2})), uses(Modelica(version = "2.2.2")));
 end MOS8;
